@@ -1,6 +1,9 @@
 package gateway
 
-import "github.com/docker/mcp-gateway/pkg/catalog"
+import (
+	"github.com/docker/mcp-gateway/pkg/catalog"
+	"gopkg.in/yaml.v3"
+)
 
 type Config struct {
 	Options
@@ -39,4 +42,29 @@ type Options struct {
 	LogFilePath             string
 	UseEmbeddings           bool
 	UseProfiles             bool
+}
+
+// GatewayDefaults holds persistent configuration for Colima/Docker CE users
+// Stored in ~/.docker/mcp/gateway.yaml
+type GatewayDefaults struct {
+	// SkipDesktopCheck bypasses Docker Desktop checks (for Colima users)
+	SkipDesktopCheck bool `yaml:"skipDesktopCheck"`
+	// Secrets is the default secrets provider (keychain, docker-desktop, or file path)
+	Secrets string `yaml:"secrets"`
+	// DefaultSecretProvider is the default provider for secret CLI commands
+	DefaultSecretProvider string `yaml:"defaultSecretProvider"`
+}
+
+// ParseGatewayDefaults parses gateway defaults from YAML bytes
+func ParseGatewayDefaults(data []byte) (*GatewayDefaults, error) {
+	if len(data) == 0 {
+		return &GatewayDefaults{}, nil
+	}
+
+	var defaults GatewayDefaults
+	if err := yaml.Unmarshal(data, &defaults); err != nil {
+		return nil, err
+	}
+
+	return &defaults, nil
 }

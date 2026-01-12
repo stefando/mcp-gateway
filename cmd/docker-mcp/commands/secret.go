@@ -8,8 +8,20 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/mcp-gateway/cmd/docker-mcp/secret-management/secret"
+	"github.com/docker/mcp-gateway/pkg/config"
 	"github.com/docker/mcp-gateway/pkg/docker"
+	"github.com/docker/mcp-gateway/pkg/gateway"
 )
+
+// getDefaultSecretProvider returns the default secret provider from gateway.yaml
+func getDefaultSecretProvider() string {
+	if data, err := config.ReadGatewayDefaults(); err == nil && len(data) > 0 {
+		if defaults, err := gateway.ParseGatewayDefaults(data); err == nil {
+			return defaults.DefaultSecretProvider
+		}
+	}
+	return ""
+}
 
 const setSecretExample = `
 ### Use secrets for postgres password with default policy
@@ -45,11 +57,16 @@ func rmSecretCommand() *cobra.Command {
 			if err := validateRmArgs(args, opts); err != nil {
 				return err
 			}
+			// Use default provider if not specified
+			if opts.Provider == "" {
+				opts.Provider = getDefaultSecretProvider()
+			}
 			return secret.Remove(cmd.Context(), args, opts)
 		},
 	}
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.All, "all", false, "Remove all secrets")
+	flags.StringVar(&opts.Provider, "provider", "", "Secret provider: keychain (default from gateway.yaml)")
 	return cmd
 }
 
@@ -67,11 +84,16 @@ func listSecretCommand() *cobra.Command {
 		Short: "List all secret names in Docker Desktop's secret store",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// Use default provider if not specified
+			if opts.Provider == "" {
+				opts.Provider = getDefaultSecretProvider()
+			}
 			return secret.List(cmd.Context(), opts)
 		},
 	}
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.JSON, "json", false, "Print as JSON.")
+	flags.StringVar(&opts.Provider, "provider", "", "Secret provider: keychain (default from gateway.yaml)")
 	return cmd
 }
 
@@ -83,6 +105,10 @@ func setSecretCommand() *cobra.Command {
 		Example: strings.Trim(setSecretExample, "\n"),
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Use default provider if not specified
+			if opts.Provider == "" {
+				opts.Provider = getDefaultSecretProvider()
+			}
 			if !secret.IsValidProvider(opts.Provider) {
 				return fmt.Errorf("invalid provider: %s", opts.Provider)
 			}
@@ -104,7 +130,7 @@ func setSecretCommand() *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
-	flags.StringVar(&opts.Provider, "provider", "", "Supported: credstore, oauth/<provider>")
+	flags.StringVar(&opts.Provider, "provider", "", "Supported: keychain, credstore, oauth/<provider> (default from gateway.yaml)")
 	return cmd
 }
 

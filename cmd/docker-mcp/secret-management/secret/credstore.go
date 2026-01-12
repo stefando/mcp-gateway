@@ -44,6 +44,27 @@ func (store *CredStoreProvider) DeleteSecret(id string) error {
 	return store.credentialHelper.Delete(getSecretKey(id))
 }
 
+// ListSecrets returns all secret names stored in the keychain with the "sm_" prefix
+func (store *CredStoreProvider) ListSecrets() ([]string, error) {
+	allCreds, err := store.credentialHelper.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var secrets []string
+	for serverURL := range allCreds {
+		// The credential helper may add https:// prefix to the URL
+		// Handle both "sm_NAME" and "https://sm_NAME" formats
+		key := serverURL
+		key = strings.TrimPrefix(key, "https://")
+		key = strings.TrimPrefix(key, "http://")
+		if secretName, found := strings.CutPrefix(key, "sm_"); found {
+			secrets = append(secrets, secretName)
+		}
+	}
+	return secrets, nil
+}
+
 func GetHelper() credentials.Helper {
 	credentialHelperPath := desktop.Paths().CredentialHelperPath()
 	return Helper{
@@ -80,7 +101,7 @@ type Helper struct {
 }
 
 func (h Helper) List() (map[string]string, error) {
-	return map[string]string{}, nil
+	return client.List(h.program)
 }
 
 // Add stores new credentials.

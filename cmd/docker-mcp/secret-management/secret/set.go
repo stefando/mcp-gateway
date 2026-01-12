@@ -12,6 +12,7 @@ import (
 
 const (
 	Credstore = "credstore"
+	Keychain  = "keychain"
 )
 
 type SetOpts struct {
@@ -50,14 +51,18 @@ func ParseArg(arg string, opts SetOpts) (*Secret, error) {
 }
 
 func isDirectValueProvider(provider string) bool {
-	return provider == "" || provider == Credstore
+	return provider == "" || provider == Credstore || provider == Keychain
 }
 
 func Set(ctx context.Context, s Secret, opts SetOpts) error {
-	if opts.Provider == Credstore {
+	if opts.Provider == Credstore || opts.Provider == Keychain {
 		p := NewCredStoreProvider()
 		if err := p.SetSecret(s.key, s.val); err != nil {
 			return err
+		}
+		// Keychain-only mode: don't try Docker Desktop
+		if opts.Provider == Keychain {
+			return nil
 		}
 	}
 	return desktop.NewSecretsClient().SetJfsSecret(ctx, desktop.Secret{
@@ -74,7 +79,7 @@ func IsValidProvider(provider string) bool {
 	if strings.HasPrefix(provider, "oauth/") {
 		return true
 	}
-	if provider == Credstore {
+	if provider == Credstore || provider == Keychain {
 		return true
 	}
 	return false

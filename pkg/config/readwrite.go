@@ -58,6 +58,22 @@ func WriteCatalog(content []byte) error {
 	return writeConfigFile("catalog.json", content)
 }
 
+// ReadGatewayDefaults reads the gateway defaults from ~/.docker/mcp/gateway.yaml
+// Returns nil with no error if the file doesn't exist
+func ReadGatewayDefaults() ([]byte, error) {
+	path, err := FilePath("gateway.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	return readFileOrEmpty(path)
+}
+
+// WriteGatewayDefaults writes the gateway defaults to ~/.docker/mcp/gateway.yaml
+func WriteGatewayDefaults(content []byte) error {
+	return writeConfigFile("gateway.yaml", content)
+}
+
 func WriteCatalogFile(name string, content []byte) error {
 	return writeConfigFile(catalogFilename(name), content)
 }

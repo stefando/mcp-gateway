@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/mcp-gateway/cmd/docker-mcp/catalog"
 	catalogTypes "github.com/docker/mcp-gateway/pkg/catalog"
+	"github.com/docker/mcp-gateway/pkg/config"
 	"github.com/docker/mcp-gateway/pkg/docker"
 	"github.com/docker/mcp-gateway/pkg/features"
 	"github.com/docker/mcp-gateway/pkg/gateway"
@@ -58,6 +59,16 @@ func gatewayCommand(docker docker.Client, dockerCli command.Cli, features featur
 			},
 		}
 	}
+
+	// Override with values from gateway.yaml if present
+	if data, err := config.ReadGatewayDefaults(); err == nil && len(data) > 0 {
+		if defaults, err := gateway.ParseGatewayDefaults(data); err == nil {
+			if defaults.Secrets != "" {
+				options.SecretsPath = defaults.Secrets
+			}
+		}
+	}
+
 	if !features.IsProfilesFeatureEnabled() {
 		// Default these only if we aren't defaulting to profiles
 		setLegacyDefaults(&options)

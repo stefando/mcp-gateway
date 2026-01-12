@@ -51,6 +51,52 @@ func configCommand(docker docker.Client) *cobra.Command {
 	})
 
 	cmd.AddCommand(&cobra.Command{
+		Use:   "read-gateway",
+		Short: "Read the gateway defaults configuration",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			content, err := config.ReadGatewayDefaults()
+			if err != nil {
+				return err
+			}
+			if len(content) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "# No gateway defaults configured")
+				fmt.Fprintln(cmd.OutOrStdout(), "# Example:")
+				fmt.Fprintln(cmd.OutOrStdout(), "# skipDesktopCheck: true")
+				fmt.Fprintln(cmd.OutOrStdout(), "# secrets: keychain")
+				fmt.Fprintln(cmd.OutOrStdout(), "# defaultSecretProvider: keychain")
+				return nil
+			}
+			_, _ = cmd.OutOrStdout().Write(content)
+			return nil
+		},
+	})
+
+	cmd.AddCommand(&cobra.Command{
+		Use:   "write-gateway",
+		Short: "Write the gateway defaults configuration",
+		Long: `Write the gateway defaults configuration to ~/.docker/mcp/gateway.yaml
+
+This file allows Colima/Docker CE users to configure default settings:
+  - skipDesktopCheck: true    # Skip Docker Desktop checks
+  - secrets: keychain         # Default secrets provider
+  - defaultSecretProvider: keychain  # Default provider for secret commands`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return config.WriteGatewayDefaults([]byte(args[0]))
+		},
+	})
+
+	cmd.AddCommand(&cobra.Command{
+		Use:   "reset-gateway",
+		Short: "Reset the gateway defaults configuration",
+		Args:  cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error {
+			return config.WriteGatewayDefaults(nil)
+		},
+	})
+
+	cmd.AddCommand(&cobra.Command{
 		Use:    "dump",
 		Short:  "Dump the whole configuration",
 		Args:   cobra.NoArgs,

@@ -12,6 +12,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
+	"github.com/docker/mcp-gateway/cmd/docker-mcp/secret-management/secret"
 	"github.com/docker/mcp-gateway/pkg/catalog"
 	"github.com/docker/mcp-gateway/pkg/config"
 	"github.com/docker/mcp-gateway/pkg/docker"
@@ -331,6 +332,11 @@ func (c *FileBasedConfiguration) readOnce(ctx context.Context) (Configuration, e
 		if err != nil {
 			return Configuration{}, fmt.Errorf("reading MCP Toolkit's secrets: %w", err)
 		}
+	} else if c.SecretsPath == "keychain" {
+		secrets, err = c.readSecretsFromKeychain(ctx, servers, serverNames)
+		if err != nil {
+			return Configuration{}, fmt.Errorf("reading keychain secrets: %w", err)
+		}
 	} else {
 		// Unless SecretsPath is only `docker-desktop`, we don't fail if secrets can't be read.
 		// It's ok for the MCP tookit's to not be available (in Cloud Run, for example).
@@ -339,6 +345,8 @@ func (c *FileBasedConfiguration) readOnce(ctx context.Context) (Configuration, e
 		for secretPath := range strings.SplitSeq(c.SecretsPath, ":") {
 			if secretPath == "docker-desktop" {
 				secrets, err = c.readDockerDesktopSecrets(ctx, servers, serverNames)
+			} else if secretPath == "keychain" {
+				secrets, err = c.readSecretsFromKeychain(ctx, servers, serverNames)
 			} else {
 				secrets, err = c.readSecretsFromFile(ctx, secretPath)
 			}
@@ -546,6 +554,41 @@ func (c *FileBasedConfiguration) readSecretsFromFile(ctx context.Context, path s
 		secrets[key] = value
 	}
 
+	return secrets, nil
+}
+
+// readSecretsFromKeychain reads secrets from macOS Keychain via docker-credential-osxkeychain
+func (c *FileBasedConfiguration) readSecretsFromKeychain(_ context.Context, servers map[string]catalog.Server, serverNames []string) (map[string]string, error) {
+	// Gather unique secret names from servers
+	uniqueSecretNames := make(map[string]struct{})
+	for _, serverName := range serverNames {
+		serverName := strings.TrimSpace(serverName)
+		serverSpec, ok := servers[serverName]
+		if !ok {
+			continue
+		}
+		for _, s := range serverSpec.Secrets {
+			uniqueSecretNames[s.Name] = struct{}{}
+		}
+	}
+
+	if len(uniqueSecretNames) == 0 {
+		return map[string]string{}, nil
+	}
+
+	secrets := map[string]string{}
+	provider := secret.NewCredStoreProvider()
+
+	for name := range uniqueSecretNames {
+		val, err := provider.GetSecret(name)
+		if err != nil {
+			log.Logf("couldn't read secret %s from keychain: %v", name, err)
+			continue
+		}
+		secrets[name] = val
+	}
+
+	log.Log("  - Read secrets from keychain:", len(secrets))
 	return secrets, nil
 }
 

@@ -14,12 +14,24 @@ import (
 
 	"github.com/docker/mcp-gateway/cmd/docker-mcp/commands"
 	"github.com/docker/mcp-gateway/cmd/docker-mcp/version"
+	"github.com/docker/mcp-gateway/pkg/config"
 	"github.com/docker/mcp-gateway/pkg/features"
+	"github.com/docker/mcp-gateway/pkg/gateway"
 )
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	// Check gateway.yaml for skipDesktopCheck BEFORE features initialization
+	// This must happen early because features.New() checks DOCKER_MCP_IN_CONTAINER
+	if os.Getenv("DOCKER_MCP_IN_CONTAINER") != "1" {
+		if data, err := config.ReadGatewayDefaults(); err == nil && len(data) > 0 {
+			if defaults, err := gateway.ParseGatewayDefaults(data); err == nil && defaults.SkipDesktopCheck {
+				os.Setenv("DOCKER_MCP_IN_CONTAINER", "1")
+			}
+		}
+	}
 
 	// We need to preserve CWD as paths.Init will change it.
 	cwd, err := os.Getwd()

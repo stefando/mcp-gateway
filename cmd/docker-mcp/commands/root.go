@@ -10,10 +10,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/mcp-gateway/cmd/docker-mcp/version"
+	"github.com/docker/mcp-gateway/pkg/config"
 	"github.com/docker/mcp-gateway/pkg/db"
 	"github.com/docker/mcp-gateway/pkg/desktop"
 	"github.com/docker/mcp-gateway/pkg/docker"
 	"github.com/docker/mcp-gateway/pkg/features"
+	"github.com/docker/mcp-gateway/pkg/gateway"
 	"github.com/docker/mcp-gateway/pkg/migrate"
 )
 
@@ -54,6 +56,15 @@ func Root(ctx context.Context, cwd string, dockerCli command.Cli, features featu
 			// Check the feature initialization error here for clearer error messages for the user
 			if features.InitError() != nil {
 				return features.InitError()
+			}
+
+			// Check gateway.yaml for skipDesktopCheck setting and set env var if needed
+			if os.Getenv("DOCKER_MCP_IN_CONTAINER") != "1" {
+				if data, err := config.ReadGatewayDefaults(); err == nil && len(data) > 0 {
+					if defaults, err := gateway.ParseGatewayDefaults(data); err == nil && defaults.SkipDesktopCheck {
+						os.Setenv("DOCKER_MCP_IN_CONTAINER", "1")
+					}
+				}
 			}
 
 			if os.Getenv("DOCKER_MCP_IN_CONTAINER") != "1" {
