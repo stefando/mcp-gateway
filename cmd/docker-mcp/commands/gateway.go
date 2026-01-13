@@ -381,15 +381,16 @@ func setLegacyDefaults(options *gateway.Config) {
 		if len(options.CatalogPath) == 0 {
 			options.CatalogPath = []string{catalog.DockerCatalogFilename}
 		}
-		if len(options.RegistryPath) == 0 {
-			options.RegistryPath = []string{"registry.yaml"}
-		}
-		if len(options.ConfigPath) == 0 {
-			options.ConfigPath = []string{"config.yaml"}
-		}
-		if len(options.ToolsPath) == 0 {
-			options.ToolsPath = []string{"tools.yaml"}
-		}
+	}
+	// These defaults apply regardless of DOCKER_MCP_IN_CONTAINER
+	if len(options.RegistryPath) == 0 {
+		options.RegistryPath = []string{"registry.yaml"}
+	}
+	if len(options.ConfigPath) == 0 {
+		options.ConfigPath = []string{"config.yaml"}
+	}
+	if len(options.ToolsPath) == 0 {
+		options.ToolsPath = []string{"tools.yaml"}
 	}
 }
 
